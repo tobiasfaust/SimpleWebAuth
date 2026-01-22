@@ -1,4 +1,6 @@
 <?php
+$tz = getenv('TZ') ?: 'Europe/Berlin';
+@date_default_timezone_set($tz);
 $logFile = __DIR__ . '/../audit/' . date('Y-m-d') . '.log';
 $secret = trim(file_get_contents(__DIR__.'/../secret.key'));
 
@@ -51,7 +53,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    $exp = time() + 60*60*24*30;
+    // Ablaufzeit pro Nutzer aus users/<user>.json lesen
+    $userJsonPath = __DIR__ . '/../users/' . $username . '.json';
+    $userData = is_file($userJsonPath) ? (json_decode(file_get_contents($userJsonPath), true) ?: []) : [];
+    $cookieExpSeconds = (int)($userData['cookie_exp_seconds'] ?? (60*60*24*30));
+    if ($cookieExpSeconds < 60) { $cookieExpSeconds = 60; }
+    if ($cookieExpSeconds > 60*60*24*365) { $cookieExpSeconds = 60*60*24*365; }
+
+    // Nutzerstatus prüfen
+    if (isset($userData['enabled']) && (int)$userData['enabled'] === 0) {
+        deny($logFile, 'user_disabled user=' . $username);
+        render_login($target, 'Konto ist deaktiviert.');
+        exit;
+    }
+
+    $exp = time() + $cookieExpSeconds;
     $payload = ['user' => $username, 'exp' => $exp];
     $sig = hash_hmac('sha256', $username . '|' . $exp, $secret);
     $payload['sig'] = $sig;
@@ -65,6 +81,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'samesite' => 'Strict'
     ]);
 
+    // Letzten Login im Nutzer-JSON speichern
+    $userData['last_login_at'] = time();
+    file_put_contents($userJsonPath, json_encode($userData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
+
     file_put_contents(
         $logFile,
         date('c') . " LOGIN user=" . $username . " ip=" . $_SERVER['REMOTE_ADDR'] . "\n",
@@ -75,28 +95,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-// Prüfe bestehendes Cookie auf Gültigkeit
-if(isset($_COOKIE['AUTH'])){
-    $data = json_decode(base64_decode($_COOKIE['AUTH'] ?? ''), true);
-    if ($data && isset($data['user'], $data['exp'], $data['sig'])) {
-        if ($data['exp'] >= time()) {
-            $expectedSig = hash_hmac('sha256', $data['user'] . '|' . $data['exp'], $secret);
-            if (hash_equals($expectedSig, $data['sig'])) {
-                header("Location: " . $target);
-                exit;
-            } else {
-                deny($logFile, 'invalid_signature');
-            }
-        } else {
-            deny($logFile, 'expired_cookie');
-        }
-    } else {
-        deny($logFile, 'malformed_cookie');
-    }
-} else {
-    deny($logFile, 'not authenticated');
-}
-
+// Cookie-Prüfung findet nun in validate_auth.php (RewriteMap) statt.
+// Wird diese Seite aufgerufen, gilt der Cookie als ungültig/fehlend und wir zeigen die Login-Seite.
 render_login($target);
 exit;
 ?>

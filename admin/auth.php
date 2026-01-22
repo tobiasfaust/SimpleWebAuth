@@ -34,9 +34,36 @@ setcookie('AUTH',$session,[
 ]);
 */
 
+// Cookie-Ablauf aus users/<user>.json lesen
+$usersDir = __DIR__ . '/../users';
+$userJsonPath = $usersDir . '/' . $data['user'] . '.json';
+$userJson = [];
+if (is_file($userJsonPath)) {
+    $userJson = json_decode(file_get_contents($userJsonPath), true) ?: [];
+}
+$cookieExpSeconds = (int)($userJson['cookie_exp_seconds'] ?? (60*60*24*30));
+if ($cookieExpSeconds < 60) { $cookieExpSeconds = 60; }
+if ($cookieExpSeconds > 60*60*24*365) { $cookieExpSeconds = 60*60*24*365; }
+
+// Nutzerstatus prüfen (enabled)
+$usersDir = __DIR__ . '/../users';
+$userJsonPath = $usersDir . '/' . $data['user'] . '.json';
+$userJson = is_file($userJsonPath) ? (json_decode(file_get_contents($userJsonPath), true) ?: []) : [];
+if (isset($userJson['enabled']) && (int)$userJson['enabled'] === 0) {
+     // Token einmalig verbrauchen, dann verweigern
+     @unlink($file);
+     file_put_contents(
+          $logFile,
+          date('c') . " LOGIN_DENIED_DISABLED user=" . $data['user'] . " ip=" . $_SERVER['REMOTE_ADDR'] . "\n",
+          FILE_APPEND | LOCK_EX
+     );
+     http_response_code(403);
+     exit('Konto ist deaktiviert.');
+}
+
 $payload = [
     'user' => $data['user'],
-    'exp'  => time() + 60*60*24*30
+    'exp'  => time() + $cookieExpSeconds
 ];
 
 $signature = hash_hmac(
@@ -66,6 +93,11 @@ file_put_contents(
     date('c') . " LOGIN user=" . $data['user'] . " ip=" . $_SERVER['REMOTE_ADDR'] . "\n",
     FILE_APPEND | LOCK_EX
 );
+
+// last_cookie_payload und last_login_at im users/<user>.json speichern
+$userJson['last_login_at'] = time();
+file_put_contents($userJsonPath, json_encode($userJson, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
+
 header("Location: /");
 exit;
 ?>
