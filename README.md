@@ -16,33 +16,19 @@ git clone https://github.com/tobiasfaust/SimpleWebAuth.git /var/www/SimpleWebAut
 chown -R www-data:www-data /var/www/SimpleWebAuth/
 chmod -R a+X /var/www/SimpleWebAuth/
 ```
-
+3. secret.key erzeugen
+```
+umask 077
+openssl rand -hex 32 > /var/www/SimpleWebAuth/secret.key
+chown www-data:www-data /var/www/SimpleWebAuth/secret.key
+chmod 600 /var/www/SimpleWebAuth/secret.key
+```
 ## Apache Konfiguration
 
 1. PHP aktivieren, zb. in der `sites-avaliable/00-ssl.conf`:
-```
-AddType application/x-httpd-php .php
-```
+
 2. Auth-Middleware aktivieren:
 im apache eine neue konfiguration anlegen: `sites-available/20-simplewebauth.conf`
-```
-Alias /auth /var/www/SimpleWebAuth/public/
-Alias /authadmin /var/www/SimpleWebAuth/admin/
-
-<Directory /var/www/SimpleWebAuth/admin/>
-  AddDefaultCharset UTF-8
-  <IfModule mod_authz_core.c>
-     <RequireAll>
-       Require ip 192.168.10.0/24
-     </RequireAll>
-  </IfModule>
-</Directory>
-```
-
-3. innerhalb des <VirtualHost> (außerhalb von <Location>) integrieren: `sites-available/00-ssl.conf`
-```
-RewriteMap authcheck "prg:/usr/bin/env php /var/www/SimpleWebAuth/bin/validate_auth.php"
-```
 
 3. die zu sichernde interne Applikation für den Apachen konfigurieren: `sites-available/10-fhem.conf`
 
