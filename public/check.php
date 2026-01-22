@@ -17,20 +17,6 @@ if(!isset($_COOKIE['AUTH'])){
    deny($logFile, 'not authenticated');
 }
 
-/*
-$data = json_decode(base64_decode($_COOKIE['AUTH']), true);
-
-if(!$data || $data['exp'] < time()){
-    file_put_contents(
-        $logFile,
-        date('c') . " ACCESS_DENIED expired_cookie ip=" . $_SERVER['REMOTE_ADDR'] . "\n",
-        FILE_APPEND | LOCK_EX
-    );
-    http_response_code(401);
-    exit('Session abgelaufen');
-}
-*/
-
 $data = json_decode(base64_decode($_COOKIE['AUTH'] ?? ''), true);
 
 if (!$data || !isset($data['user'], $data['exp'], $data['sig'])) {
@@ -52,10 +38,10 @@ if (!hash_equals($expectedSig, $data['sig'])) {
 }
 
 
-// 2. ERWEITERUNG: Token ist gültig!
-// Wir setzen ein kurzlebiges Cookie (Session-Cookie), das Apache als "Türöffner" dient.
-// Wichtig: Der Pfad muss "/" oder "/fhem" sein.
-setcookie("FHEM_OK", "true", 0, "/", "", false, true);
+// 2. Token ist gültig!
+// Hinweis: Kein zusätzliches "OK"-Cookie mehr nötig.
+// Die Apache-Konfiguration prüft ab jetzt das AUTH-Cookie per RewriteMap
+// bei jeder Anfrage und lässt nur dann zum Backend durch.
 
 // 3. Zurückleiten an die ursprüngliche Anfrage
 // Wenn kein 'return' Parameter da ist, einfach zu /fhem

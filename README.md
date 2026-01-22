@@ -6,55 +6,69 @@ Geeignet für iOS Safari + Apache + mod_proxy.
 
 ## Installation
 
-1. ZIP entpacken:
+1. git clonen:
+Das Apache publich html verzeichnis ist `/var/ww/html/`
 ```
-unzip Auth-Mini-WebProject.zip -d /var/www/html/
+git clone https://github.com/tobiasfaust/SimpleWebAuth.git /var/www/SimpleWebAuth/
 ```
 2. Rechte setzen:
 ```
-chown -R www-data:www-data /var/www/html/Auth-Mini-WebProject
-chmod -R 700 /var/www/html/Auth-Mini-WebProject/auth
+chown -R www-data:www-data /var/www/SimpleWebAuth/
+chmod -R a+X /var/www/SimpleWebAuth/
 ```
 
 ## Apache Konfiguration
 
-1. PHP aktivieren:
+1. PHP aktivieren, zb. in der `sites-avaliable/00-ssl.conf`:
 ```
 AddType application/x-httpd-php .php
 ```
 2. Auth-Middleware aktivieren:
+im apache eine neue konfiguration anlegen: `sites-available/20-simplewebauth.conf`
 ```
-php_value auto_prepend_file "/var/www/html/Auth-Mini-WebProject/auth/check.php"
+Alias /auth /var/www/SimpleWebAuth/public/
+Alias /authadmin /var/www/SimpleWebAuth/admin/
+
+<Directory /var/www/SimpleWebAuth/admin/>
+  AddDefaultCharset UTF-8
+  <IfModule mod_authz_core.c>
+     <RequireAll>
+       Require ip 192.168.10.0/24
+     </RequireAll>
+  </IfModule>
+</Directory>
 ```
-3. Proxy-Apps absichern:
+
+3. innerhalb des <VirtualHost> (außerhalb von <Location>) integrieren: `sites-available/00-ssl.conf`
 ```
-<Location /app1/>
-    ProxyPass http://127.0.0.1:8080/
-    ProxyPassReverse http://127.0.0.1:8080/
-    Require all granted
-</Location>
-<Location /app2/>
-    ProxyPass http://127.0.0.1:8081/
-    ProxyPassReverse http://127.0.0.1:8081/
-    Require all granted
-</Location>
+RewriteMap authcheck "prg:/usr/bin/env php /var/www/SimpleWebAuth/bin/validate_auth.php"
 ```
-Backend-Apps nur intern binden:
+
+3. die zu sichernde interne Applikation für den Apachen konfigurieren: `sites-available/10-fhem.conf`
+
+4. Konfigurationen im apache aktivieren
+```
+a2ensite 00-ssl 10-fhem 20-simplewebauth
+a2enmod ssl headers rewrite proxy_http proxy_html proxy_wstunnel
+```
+
+5. Backend-Apps nur intern binden:
 ```
 listen 127.0.0.1:8080
 ```
 
 ## Nutzung
 
-1. Admin öffnet `/admin/users.php`
+1. Admin öffnet `/authadmin/users.php`
 2. QR-Code für Magic-Link erzeugen
 3. iOS scannt → Cookie wird gesetzt
-4. Zugriff auf `/app1` oder `/app2` funktioniert automatisch
+4. Zugriff auf `/fhem funktioniert` automatisch
 
 ## Sicherheit
 
 - HTTPS Pflicht
 - Magic-Link Token einmalig (5-15 Minuten gültig)
-- Session-Cookie 30 Tage gültig
+- Session-Cookie 30 Tage gültig (HMAC-signiert, pro Anfrage validiert)
 - Backend nie öffentlich erreichbar
-- Audit-Log in `auth/audit/YYYY-MM-DD.log`
+- Audit-Log in `/var/www/SimpleWebAuth/audit/YYYY-MM-DD.log`
+- Audit-Log einsehbar unter `/authadmin/index.php` -> `Audit`

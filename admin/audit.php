@@ -22,7 +22,7 @@ rsort($files);
         <?php foreach ($files as $file): ?>
             <h3><?= htmlspecialchars(basename($file)) ?></h3>
             <pre class="audit">
-<?= htmlspecialchars(file_get_contents($file)) ?>
+<?= htmlspecialchars(implode("\n", array_reverse((array) file($file, FILE_IGNORE_NEW_LINES))), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
             </pre>
         <?php endforeach; ?>
     <?php endif; ?>
