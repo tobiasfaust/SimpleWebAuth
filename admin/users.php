@@ -51,6 +51,15 @@ function ensure_user_json(string $usersDir, string $username): array {
         return $existing;
 }
 
+function password_complexity_ok(string $password): bool {
+    $groups = 0;
+    if (preg_match('/[A-Z]/', $password)) $groups++;
+    if (preg_match('/[a-z]/', $password)) $groups++;
+    if (preg_match('/\d/', $password)) $groups++;
+    if (preg_match('/[^A-Za-z0-9]/', $password)) $groups++;
+    return $groups >= 3;
+}
+
 function audit(string $logFile, string $line): void {
         file_put_contents($logFile, date('c') . ' ' . $line . ' ip=' . ($_SERVER['REMOTE_ADDR'] ?? '-') . "\n", FILE_APPEND | LOCK_EX);
 }
@@ -63,6 +72,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'create_user') {
                 $username = trim($_POST['username'] ?? '');
                 $email = trim($_POST['email'] ?? '');
+            $password = (string)($_POST['password'] ?? '');
+            $password2 = (string)($_POST['password2'] ?? '');
                 if ($username === '' || !preg_match('/^[A-Za-z0-9._-]+$/', $username)) {
                         http_response_code(400);
                         echo json_encode(['ok' => false, 'error' => 'invalid_username']);
@@ -75,15 +86,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         echo json_encode(['ok' => false, 'error' => 'user_exists']);
                         exit;
                 }
-                $randomPassword = bin2hex(random_bytes(12));
-                $hash = password_hash($randomPassword, PASSWORD_DEFAULT);
+            if ($password === '' || $password2 === '' || $password !== $password2) {
+                http_response_code(400);
+                echo json_encode(['ok' => false, 'error' => 'password_mismatch']);
+                exit;
+            }
+            if (!password_complexity_ok($password)) {
+                http_response_code(400);
+                echo json_encode(['ok' => false, 'error' => 'password_weak']);
+                exit;
+            }
+            $hash = password_hash($password, PASSWORD_DEFAULT);
                 file_put_contents($keyPath, $hash, LOCK_EX);
                 $data = ensure_user_json($usersDir, $username);
                 $data['email'] = $email;
                 $data['updated_at'] = time();
                 write_json($jsonPath, $data);
                 audit($auditLog, 'ADMIN_USER_CREATED user=' . $username);
-                echo json_encode(['ok' => true, 'user' => $username, 'password' => $randomPassword]);
+            echo json_encode(['ok' => true, 'user' => $username]);
                 exit;
         }
 
@@ -117,6 +137,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo json_encode(['ok' => true, 'seconds' => $seconds]);
                 exit;
         }
+
+            if ($action === 'change_password') {
+                $username = trim($_POST['username'] ?? '');
+                $password = (string)($_POST['password'] ?? '');
+                $password2 = (string)($_POST['password2'] ?? '');
+                if ($username === '' || !preg_match('/^[A-Za-z0-9._-]+$/', $username)) {
+                    http_response_code(400);
+                    echo json_encode(['ok' => false, 'error' => 'invalid_username']);
+                    exit;
+                }
+                if ($password === '' || $password2 === '' || $password !== $password2) {
+                    http_response_code(400);
+                    echo json_encode(['ok' => false, 'error' => 'password_mismatch']);
+                    exit;
+                }
+                if (!password_complexity_ok($password)) {
+                    http_response_code(400);
+                    echo json_encode(['ok' => false, 'error' => 'password_weak']);
+                    exit;
+                }
+                $keyPath = $usersDir . '/' . $username . '.key';
+                if (!is_file($keyPath)) {
+                    http_response_code(404);
+                    echo json_encode(['ok' => false, 'error' => 'user_not_found']);
+                    exit;
+                }
+                $hash = password_hash($password, PASSWORD_DEFAULT);
+                file_put_contents($keyPath, $hash, LOCK_EX);
+                $jsonPath = $usersDir . '/' . $username . '.json';
+                $data = ensure_user_json($usersDir, $username);
+                $data['updated_at'] = time();
+                write_json($jsonPath, $data);
+                audit($auditLog, 'USER_PASSWORD_CHANGED by ' . ' for user=' . $username . ' ip: ' . ($_SERVER['REMOTE_ADDR'] ?? '-'));
+                echo json_encode(['ok' => true]);
+                exit;
+            }
 
         if ($action === 'toggle_enabled') {
             $username = trim($_POST['username'] ?? '');
@@ -230,15 +286,32 @@ foreach ($keyFiles as $keyFile) {
         <table>
                 <tr>
                         <th>Benutzername</th>
+                        <th>Passwort</th>
                         <th>Email</th>
                         <th>Cookie-Ablauf (Sek.)</th>
                         <th>Aktionen</th>
                 </tr>
-                <?php if (empty($users)): ?>
-                        <tr><td colspan="4">Keine Benutzer vorhanden.</td></tr>
+                    <?php if (empty($users)): ?>
+                        <tr><td colspan="5">Keine Benutzer vorhanden.</td></tr>
                 <?php else: foreach ($users as $u): ?>
                         <tr data-user="<?= htmlspecialchars($u['id'], ENT_QUOTES, 'UTF-8') ?>" data-enabled="<?= isset($u['enabled']) ? (int)$u['enabled'] : 1 ?>">
                                 <td><?= htmlspecialchars($u['id'], ENT_QUOTES, 'UTF-8') ?></td>
+                            <td>
+                                <span class="pw-view" data-role="pw-view">**********</span>
+                                <div class="pw-edit" data-role="pw-edit" style="display:none;">
+                                    <div class="input-group">
+                                        <input type="password" class="pw1" placeholder="Neues Passwort">
+                                    </div>
+                                    <div class="input-group">
+                                        <input type="password" class="pw2" placeholder="Passwort wiederholen">
+                                    </div>
+                                    <div class="hint pw-hint">Mindestens 3 Gruppen: Großbuchstaben, Kleinbuchstaben, Zahlen, Sonderzeichen.</div>
+                                    <div class="modal-actions">
+                                        <button type="button" class="pw-save">Speichern</button>
+                                        <button type="button" class="pw-cancel secondary">Abbrechen</button>
+                                    </div>
+                                </div>
+                            </td>
                                 <td>
                                         <span class="email-view" data-role="email-view"><?= htmlspecialchars($u['email'] ?? '', ENT_QUOTES, 'UTF-8') ?></span>
                                         <input class="email-edit" data-role="email-edit" type="email" value="<?= htmlspecialchars($u['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>" style="display:none;" />
@@ -270,6 +343,14 @@ foreach ($keyFiles as $keyFile) {
         <input type="text" id="createUsername" placeholder="username">
         <label>Email</label>
         <input type="email" id="createEmail" placeholder="name@example.com">
+        <label>Passwort</label>
+        <div class="input-group">
+            <input type="password" id="createPw1" placeholder="Passwort">
+        </div>
+        <div class="input-group">
+            <input type="password" id="createPw2" placeholder="Passwort wiederholen">
+        </div>
+        <div class="hint">Mindestens 3 Gruppen: Großbuchstaben, Kleinbuchstaben, Zahlen, Sonderzeichen.</div>
         <div class="modal-actions">
             <button id="createSave">Speichern</button>
             <button id="createCancel" class="secondary">Abbrechen</button>
@@ -486,7 +567,17 @@ document.getElementById('createCancel').addEventListener('click', () => {
 document.getElementById('createSave').addEventListener('click', () => {
     const username = document.getElementById('createUsername').value.trim();
     const email = document.getElementById('createEmail').value.trim();
-    post('create_user', { username, email }).then(resp => {
+    const password = document.getElementById('createPw1').value;
+    const password2 = document.getElementById('createPw2').value;
+    if (password !== password2) {
+        document.getElementById('createHint').textContent = 'Passwörter stimmen nicht überein.';
+        return;
+    }
+    if (!pwComplex(password)) {
+        document.getElementById('createHint').textContent = 'Passwort ist zu schwach (mind. 3 Gruppen).';
+        return;
+    }
+    post('create_user', { username, email, password, password2 }).then(resp => {
         if (resp.ok) {
             document.getElementById('modalCreate').style.display = 'none';
             location.reload();
@@ -494,6 +585,56 @@ document.getElementById('createSave').addEventListener('click', () => {
             document.getElementById('createHint').textContent = 'Fehler: ' + (resp.error || 'unbekannt');
         }
     });
+});
+
+function pwComplex(pw) {
+    let groups = 0;
+    if (/[A-Z]/.test(pw)) groups++;
+    if (/[a-z]/.test(pw)) groups++;
+    if (/\d/.test(pw)) groups++;
+    if (/[^A-Za-z0-9]/.test(pw)) groups++;
+    return groups >= 3;
+}
+
+// Passwort inline ändern
+document.querySelectorAll('tr[data-user]').forEach(row => {
+    const username = row.getAttribute('data-user');
+    const view = row.querySelector('[data-role="pw-view"]');
+    const edit = row.querySelector('[data-role="pw-edit"]');
+    const saveBtn = edit ? edit.querySelector('.pw-save') : null;
+    const cancelBtn = edit ? edit.querySelector('.pw-cancel') : null;
+    const pw1 = edit ? edit.querySelector('.pw1') : null;
+    const pw2 = edit ? edit.querySelector('.pw2') : null;
+    if (view && edit && saveBtn && cancelBtn && pw1 && pw2) {
+        view.addEventListener('click', () => {
+            view.style.display = 'none';
+            edit.style.display = 'block';
+            pw1.focus();
+        });
+        cancelBtn.addEventListener('click', () => {
+            edit.style.display = 'none';
+            view.style.display = 'inline';
+            pw1.value = '';
+            pw2.value = '';
+        });
+        saveBtn.addEventListener('click', () => {
+            const p1 = pw1.value;
+            const p2 = pw2.value;
+            if (p1 !== p2) { showToast('Passwörter stimmen nicht überein.', false); return; }
+            if (!pwComplex(p1)) { showToast('Passwort ist zu schwach (mind. 3 Gruppen).', false); return; }
+            post('change_password', { username, password: p1, password2: p2 }).then(resp => {
+                if (resp && resp.ok) {
+                    showToast('Passwort geändert.', true);
+                    edit.style.display = 'none';
+                    view.style.display = 'inline';
+                    pw1.value = '';
+                    pw2.value = '';
+                } else {
+                    showToast('Fehler beim Ändern.', false);
+                }
+            });
+        });
+    }
 });
 </script>
 </body>
