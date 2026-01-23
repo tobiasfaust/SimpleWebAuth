@@ -94,9 +94,7 @@ file_put_contents(
     FILE_APPEND | LOCK_EX
 );
 
-// last_cookie_payload und last_login_at im users/<user>.json speichern
-$userJson['last_login_at'] = time();
-file_put_contents($userJsonPath, json_encode($userJson, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
+// Kein Schreiben von last_login_at in die User-JSON; Login wird im Audit-Log erfasst
 
 header("Location: /");
 exit;

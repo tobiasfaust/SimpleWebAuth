@@ -81,13 +81,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'samesite' => 'Strict'
     ]);
 
-    // Letzten Login im Nutzer-JSON speichern
-    $userData['last_login_at'] = time();
-    file_put_contents($userJsonPath, json_encode($userData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
+    // Kein Schreiben von last_login_at in die User-JSON; Login wird im Audit-Log erfasst
 
     file_put_contents(
         $logFile,
-        date('c') . " LOGIN user=" . $username . " ip=" . $_SERVER['REMOTE_ADDR'] . "\n",
+        date('c') . " LOGIN_GRANTED for user=" . $username . " ip=" . $_SERVER['REMOTE_ADDR'] . "\n",
         FILE_APPEND | LOCK_EX
     );
 

@@ -99,7 +99,7 @@ while (($line = fgets(STDIN)) !== false) {
                         $raw = file_get_contents($userJsonPath);
                         $userData = json_decode($raw, true);
                     }
-                    if (is_array($userData) && (!isset($userData['enabled']) || (int)$userData['enabled'] === 1)) {
+                    if (is_array($userData) && (int)$userData['enabled'] === 1) {
                         $result = 'OK';
                     } else {
                         deny($logFile, 'user_disabled user=' . $user . ' target=' . $requestUri, $ip);

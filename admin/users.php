@@ -38,7 +38,6 @@ function ensure_user_json(string $usersDir, string $username): array {
                         'last_key_generated_at' => $lastKeyGen,
                 'cookie_exp_seconds' => 60*60*24*30,
                 'enabled' => 1,
-                'last_login_at' => null
                 ];
                 write_json($jsonPath, $data);
                 return $data;
@@ -165,7 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'get_user_info') {
             $username = trim($_POST['username'] ?? '');
             $data = ensure_user_json($usersDir, $username);
-            // letzten Login aus Audit-Logs ermitteln
+            // letzte Loginfreigabe aus Audit-Logs ermitteln
             $lastLoginAudit = null;
             $logDir = __DIR__ . '/../audit';
             $files = glob($logDir . '/*.log');
@@ -175,7 +174,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!$lines) continue;
                 for ($i = count($lines) - 1; $i >= 0; $i--) {
                     $line = $lines[$i];
-                    if (strpos($line, ' LOGIN user=' . $username . ' ') !== false) {
+                    if (strpos($line, ' LOGIN_GRANTED user=' . $username . ' ') !== false) {
                         $ts = substr($line, 0, 25);
                         $t = strtotime($ts);
                         if ($t) { $lastLoginAudit = $t; }
@@ -192,7 +191,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'last_key_generated_at' => $data['last_key_generated_at'] ?? null,
                 'cookie_exp_seconds' => $data['cookie_exp_seconds'] ?? null,
                 'enabled' => $data['enabled'] ?? 1,
-                'last_login_at' => $data['last_login_at'] ?? null,
                 'last_login_audit' => $lastLoginAudit
             ]);
             exit;
@@ -436,7 +434,6 @@ document.querySelectorAll('.btn-info').forEach(btn => {
         const username = row.getAttribute('data-user');
         post('get_user_info', { username }).then(data => {
             if (!data || !data.ok) return;
-            const lastLogin = data.last_login_at ? new Date(data.last_login_at*1000).toLocaleString() : '—';
             const lastLoginAudit = data.last_login_audit ? new Date(data.last_login_audit*1000).toLocaleString() : '—';
             const html = `
                 <table class="kv">
@@ -447,8 +444,7 @@ document.querySelectorAll('.btn-info').forEach(btn => {
                     <tr><th>Letzte Key-Generierung</th><td>${data.last_key_generated_at? new Date(data.last_key_generated_at*1000).toLocaleString(): '—'}</td></tr>
                     <tr><th>Cookie-Ablauf (Sek.)</th><td>${data.cookie_exp_seconds||0}</td></tr>
                     <tr><th>Status</th><td>${(data.enabled? 'Aktiviert' : 'Deaktiviert')}</td></tr>
-                    <tr><th>Letzter Login (gespeichert)</th><td>${lastLogin}</td></tr>
-                    <tr><th>Letzter Login (Audit)</th><td>${lastLoginAudit}</td></tr>
+                    <tr><th>Letzte Loginfreigabe</th><td>${lastLoginAudit}</td></tr>
                 </table>`;
             document.getElementById('infoContent').innerHTML = html;
             document.getElementById('modalInfo').style.display = 'block';
