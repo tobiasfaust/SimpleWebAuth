@@ -511,7 +511,7 @@ document.querySelectorAll('.btn-toggle').forEach(btn => {
         document.getElementById('toggleUsername').value = username;
         document.getElementById('toggleEnabled').value = String(next);
         document.getElementById('toggleUserText').textContent = (next ? 'Benutzer ' + username + ' aktivieren?' : 'Benutzer ' + username + ' deaktivieren?');
-        document.getElementById('modalToggle').style.display = 'block';
+        document.getElementById('modalToggle').style.display = 'flex';
     });
 });
 document.getElementById('toggleCancel').addEventListener('click', () => {
@@ -556,7 +556,7 @@ document.querySelectorAll('.btn-info').forEach(btn => {
                     <tr><th>Letzte Loginfreigabe</th><td>${lastLoginAudit}</td></tr>
                 </table>`;
             document.getElementById('infoContent').innerHTML = html;
-            document.getElementById('modalInfo').style.display = 'block';
+            document.getElementById('modalInfo').style.display = 'flex';
         });
     });
 });
@@ -571,7 +571,7 @@ document.querySelectorAll('.btn-delete').forEach(btn => {
         const username = row.getAttribute('data-user');
         document.getElementById('deleteUsername').value = username;
         document.getElementById('deleteUserText').textContent = 'Benutzer ' + username + ' wirklich löschen?';
-        document.getElementById('modalDelete').style.display = 'block';
+        document.getElementById('modalDelete').style.display = 'flex';
     });
 });
 document.getElementById('deleteCancel').addEventListener('click', () => {
@@ -587,7 +587,7 @@ document.getElementById('deleteConfirm').addEventListener('click', () => {
 
 // Create user
 document.getElementById('btnCreate').addEventListener('click', () => {
-    document.getElementById('modalCreate').style.display = 'block';
+    document.getElementById('modalCreate').style.display = 'flex';
 });
 document.getElementById('createCancel').addEventListener('click', () => {
     document.getElementById('modalCreate').style.display = 'none';
