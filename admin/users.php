@@ -217,6 +217,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'generate_qr') {
                 $username = trim($_POST['username'] ?? '');
                 $data = ensure_user_json($usersDir, $username);
+                // Alte, abgelaufene Tokens löschen
+                $now = time();
+                foreach (glob($tokensDir . '/*.json') as $tokFile) {
+                    $raw = @file_get_contents($tokFile);
+                    $tdata = json_decode($raw, true);
+                    if (is_array($tdata) && isset($tdata['exp']) && (int)$tdata['exp'] < $now) {
+                        @unlink($tokFile);
+                    }
+                }
                 $t = bin2hex(random_bytes(16));
                 $exp = time() + 900; // Token gültig für 15 Minuten
                 $tokenData = ['user' => $username, 'exp' => $exp];
