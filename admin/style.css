@@ -10,6 +10,7 @@ body {
     background:#fff;
     padding:20px;
     box-shadow:0 0 10px rgba(0,0,0,0.1);
+    position: relative;
 }
 h1 {
     text-align:center;
@@ -109,4 +110,12 @@ pre.audit {
     font-size: 13px;
     line-height: 1.4;
     border-radius: 5px;
+}
+
+.welcome {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    color: #666;
+    font-size: 14px;
 }

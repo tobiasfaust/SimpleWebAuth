@@ -5,6 +5,17 @@ $usersDir = __DIR__ . '/../users';
 $tokensDir = __DIR__ . '/../tokens';
 $auditLog = __DIR__ . '/../audit/' . date('Y-m-d') . '.log';
 
+$loggedUser = null;
+if (!empty($_COOKIE['AUTH'])) {
+    $decoded = base64_decode($_COOKIE['AUTH'], true);
+    if ($decoded !== false) {
+        $data = json_decode($decoded, true);
+        if (is_array($data) && !empty($data['user']) && preg_match('/^[A-Za-z0-9._-]+$/', $data['user'])) {
+            $loggedUser = $data['user'];
+        }
+    }
+}
+
 function read_json(string $file): array {
         if (!is_file($file)) return [];
         $raw = file_get_contents($file);
@@ -276,6 +287,7 @@ foreach ($keyFiles as $keyFile) {
 </head>
 <body>
 <div class="container">
+    <?php if ($loggedUser): ?><div class="welcome">Willkommen <?= htmlspecialchars($loggedUser, ENT_QUOTES, 'UTF-8') ?></div><?php endif; ?>
         <h1>Userverwaltung</h1>
         <div class="actions-bar">
                 <button id="btnCreate">+ Benutzer anlegen</button>
