@@ -40,7 +40,14 @@ td,th {
 table th {
     background:#eee;
 }
-span.email-view, span.expiry-view { cursor: pointer; }
+span.email-view, span.expiry-view, span.pw-view { cursor: pointer; }
+/* dezentes Stift-Symbol neben dem Passwort */
+.pw-icon {
+    margin-left: 6px;
+    color: #999;
+    font-size: 12px;
+    vertical-align: middle;
+}
 button {
     padding:8px 12px;
     border:1px solid #ccc;
@@ -79,7 +86,6 @@ button.danger { background:#ffeaea; border-color:#ff8a8a; }
 table.kv { width:100%; border-collapse:collapse; }
 table.kv th { width:240px; background:#f9f9f9; }
 table.kv td, table.kv th { border:1px solid #ddd; padding:8px; }
-span.email-view, span.expiry-view { cursor: pointer; }
 
 .toast {
     position: fixed;
@@ -119,3 +125,29 @@ pre.audit {
     color: #666;
     font-size: 14px;
 }
+
+/* Audit Layout mit rechter Tagesnavigation */
+.audit-layout {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+.audit-content { width: 800px; max-width: 100%; }
+.audit-sidebar {
+    width: 150px;
+    text-align: left;
+}
+.audit-sidebar h4 { margin: 0 0 8px 0; color: #444; }
+.audit-sidebar ul { list-style: none; padding: 0; margin: 0; }
+.audit-sidebar li { margin: 4px 0; }
+.audit-sidebar a { color: #0077cc; text-decoration: none; }
+.audit-sidebar a.active { font-weight: bold; }
+.audit-sidebar a:hover { text-decoration: underline; }
+/* Logfenster: feste Breite, innerhalb Container scrollbar */
+pre.audit {
+    max-width: 100%;
+    max-height: 60vh;
+    overflow: auto;
+    box-sizing: border-box;
+}
+

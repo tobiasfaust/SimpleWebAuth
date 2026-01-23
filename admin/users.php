@@ -323,7 +323,9 @@ foreach ($jsonFiles as $jsonFile) {
                         <tr data-user="<?= htmlspecialchars($u['id'], ENT_QUOTES, 'UTF-8') ?>" data-enabled="<?= isset($u['enabled']) ? (int)$u['enabled'] : 1 ?>">
                                 <td><?= htmlspecialchars($u['id'], ENT_QUOTES, 'UTF-8') ?></td>
                             <td>
-                                <span class="pw-view" data-role="pw-view">**********</span>
+                                <span class="pw-view" data-role="pw-view">**********
+                                    <span class="pw-icon" aria-hidden="true" title="Passwort ändern Hinweis">✎</span>
+                                </span>
                                 <div class="pw-edit" data-role="pw-edit" style="display:none;">
                                     <div class="input-group">
                                         <input type="password" class="pw1" placeholder="Neues Passwort">
@@ -339,25 +341,25 @@ foreach ($jsonFiles as $jsonFile) {
                                 </div>
                             </td>
                                 <td>
-                                        <span class="email-view" data-role="email-view"><?= htmlspecialchars($u['email'] ?? '', ENT_QUOTES, 'UTF-8') ?></span>
-                                        <input class="email-edit" data-role="email-edit" type="email" value="<?= htmlspecialchars($u['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>" style="display:none;" />
+                                    <span class="email-view" data-role="email-view"><?= htmlspecialchars($u['email'] ?? '', ENT_QUOTES, 'UTF-8') ?></span>
+                                    <input class="email-edit" data-role="email-edit" type="email" value="<?= htmlspecialchars($u['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>" style="display:none;" />
                                 </td>
                                 <td>
                                     <span class="expiry-view" data-role="expiry-view"><?=(int)($u['cookie_exp_seconds'] ?? (60*60*24*30))?></span>
                                     <input class="expiry-edit" data-role="expiry-edit" type="number" min="60" max="31536000" step="60" value="<?= (int)($u['cookie_exp_seconds'] ?? (60*60*24*30)) ?>" style="display:none;" />
                                 </td>
                                 <td>
-                                        <button class="btn-qr">QR-Code</button>
-                                        <button class="btn-toggle"><?= (isset($u['enabled']) ? (int)$u['enabled'] : 1) ? 'Deaktivieren' : 'Aktivieren' ?></button>
-                                        <button class="btn-info">Info</button>
-                                        <button class="btn-delete danger">Löschen</button>
+                                    <button class="btn-qr">QR-Code</button>
+                                    <button class="btn-toggle"><?= (isset($u['enabled']) ? (int)$u['enabled'] : 1) ? 'Deaktivieren' : 'Aktivieren' ?></button>
+                                    <button class="btn-info">Info</button>
+                                    <button class="btn-delete danger">Löschen</button>
                                 </td>
                         </tr>
                 <?php endforeach; endif; ?>
         </table>
 
         <p>
-                <a href="index.php">← Zurück zum Dashboard</a>
+            <a href="index.php">← Zurück zum Dashboard</a>
         </p>
 </div>
 
