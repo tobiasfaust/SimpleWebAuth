@@ -44,8 +44,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    $keyFile = __DIR__ . '/../users/' . $username . '.key';
-    $hash = is_file($keyFile) ? trim(file_get_contents($keyFile)) : '';
+    // Passwort-Hash aus JSON laden
+    $userJsonPath = __DIR__ . '/../users/' . $username . '.json';
+    $userData = is_file($userJsonPath) ? (json_decode(file_get_contents($userJsonPath), true) ?: []) : [];
+    $hash = isset($userData['password_hash']) ? (string)$userData['password_hash'] : '';
 
     if (!$hash || !password_verify($password, $hash)) {
         deny($logFile, 'invalid_credentials');
@@ -54,8 +56,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Ablaufzeit pro Nutzer aus users/<user>.json lesen
-    $userJsonPath = __DIR__ . '/../users/' . $username . '.json';
-    $userData = is_file($userJsonPath) ? (json_decode(file_get_contents($userJsonPath), true) ?: []) : [];
     $cookieExpSeconds = (int)($userData['cookie_exp_seconds'] ?? (60*60*24*30));
     if ($cookieExpSeconds < 60) { $cookieExpSeconds = 60; }
     if ($cookieExpSeconds > 60*60*24*365) { $cookieExpSeconds = 60*60*24*365; }

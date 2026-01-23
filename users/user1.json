@@ -1,1 +1,1 @@
-{"id":"user1","email":"user1@example.com","last_key_generated_at":1769083730,"updated_at":1769159318,"cookie_exp_seconds":2592001,"last_cookie_created_at":1769094506,"enabled":1}
+{"id":"user1","email":"user1@example.com","updated_at":1769159318,"cookie_exp_seconds":2592001,"last_cookie_created_at":1769094506,"enabled":1,"password_hash":"","last_pw_generated_at":1769083730}

@@ -1,5 +1,5 @@
 <?php
-// Userverwaltung: Quelle ist users/*.key; pro User synchrones users/<id>.json
+// Userverwaltung: Quelle ist users/*.json; pro User synchrones users/<id>.json mit password_hash
 
 $usersDir = __DIR__ . '/../users';
 $tokensDir = __DIR__ . '/../tokens';
@@ -33,33 +33,38 @@ function write_json(string $file, array $data): bool {
 }
 
 function ensure_user_json(string $usersDir, string $username): array {
-        $jsonPath = $usersDir . '/' . $username . '.json';
-        $keyPath  = $usersDir . '/' . $username . '.key';
+    $jsonPath = $usersDir . '/' . $username . '.json';
 
-        $existing = read_json($jsonPath);
+    $existing = read_json($jsonPath);
+    if (!$existing) {
         $now = time();
-        if (!$existing) {
-                $created = $now;
-                $lastKeyGen = is_file($keyPath) ? filemtime($keyPath) ?: $now : $now;
-                $data = [
-                        'id' => $username,
-                        'email' => '',
-                        'created_at' => $created,
-                        'updated_at' => $created,
-                        'last_key_generated_at' => $lastKeyGen,
-                'cookie_exp_seconds' => 60*60*24*30,
-                'enabled' => 1,
-                ];
-                write_json($jsonPath, $data);
-                return $data;
-        }
-        // Keep last_key_generated_at in sync with .key mtime
-        $mtime = is_file($keyPath) ? filemtime($keyPath) ?: ($existing['last_key_generated_at'] ?? $now) : ($existing['last_key_generated_at'] ?? $now);
-        if (($existing['last_key_generated_at'] ?? null) !== $mtime) {
-                $existing['last_key_generated_at'] = $mtime;
-                write_json($jsonPath, $existing);
-        }
-        return $existing;
+        $data = [
+            'id' => $username,
+            'email' => '',
+            'created_at' => $now,
+            'updated_at' => $now,
+            'cookie_exp_seconds' => 60*60*24*30,
+            'enabled' => 1,
+            'password_hash' => '',
+            'last_pw_generated_at' => $now
+        ];
+        write_json($jsonPath, $data);
+        return $data;
+    }
+    // Ensure required keys exist
+    if (!isset($existing['password_hash'])) $existing['password_hash'] = '';
+    if (!isset($existing['cookie_exp_seconds'])) $existing['cookie_exp_seconds'] = 60*60*24*30;
+    if (!isset($existing['enabled'])) $existing['enabled'] = 1;
+    // Migrate/ensure last password timestamp
+    if (isset($existing['last_key_generated_at']) && !isset($existing['last_pw_generated_at'])) {
+        $existing['last_pw_generated_at'] = (int)$existing['last_key_generated_at'];
+        unset($existing['last_key_generated_at']);
+    }
+    if (!isset($existing['last_pw_generated_at'])) {
+        $existing['last_pw_generated_at'] = (int)($existing['updated_at'] ?? time());
+    }
+    write_json($jsonPath, $existing);
+    return $existing;
 }
 
 function password_complexity_ok(string $password): bool {
@@ -90,9 +95,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         echo json_encode(['ok' => false, 'error' => 'invalid_username']);
                         exit;
                 }
-                $keyPath = $usersDir . '/' . $username . '.key';
                 $jsonPath = $usersDir . '/' . $username . '.json';
-                if (is_file($keyPath) || is_file($jsonPath)) {
+                if (is_file($jsonPath)) {
                         http_response_code(409);
                         echo json_encode(['ok' => false, 'error' => 'user_exists']);
                         exit;
@@ -108,10 +112,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit;
             }
             $hash = password_hash($password, PASSWORD_DEFAULT);
-                file_put_contents($keyPath, $hash, LOCK_EX);
                 $data = ensure_user_json($usersDir, $username);
                 $data['email'] = $email;
                 $data['updated_at'] = time();
+                $data['last_pw_generated_at'] = $data['updated_at'];
+                $data['password_hash'] = $hash;
                 write_json($jsonPath, $data);
                 audit($auditLog, 'ADMIN_USER_CREATED user=' . $username);
             echo json_encode(['ok' => true, 'user' => $username]);
@@ -168,19 +173,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     echo json_encode(['ok' => false, 'error' => 'password_weak']);
                     exit;
                 }
-                $keyPath = $usersDir . '/' . $username . '.key';
-                if (!is_file($keyPath)) {
+                $jsonPath = $usersDir . '/' . $username . '.json';
+                if (!is_file($jsonPath)) {
                     http_response_code(404);
                     echo json_encode(['ok' => false, 'error' => 'user_not_found']);
                     exit;
                 }
                 $hash = password_hash($password, PASSWORD_DEFAULT);
-                file_put_contents($keyPath, $hash, LOCK_EX);
-                $jsonPath = $usersDir . '/' . $username . '.json';
                 $data = ensure_user_json($usersDir, $username);
                 $data['updated_at'] = time();
+                $data['last_pw_generated_at'] = $data['updated_at'];
+                $data['password_hash'] = $hash;
                 write_json($jsonPath, $data);
-                audit($auditLog, 'USER_PASSWORD_CHANGED by ' . ' for user=' . $username . ' ip: ' . ($_SERVER['REMOTE_ADDR'] ?? '-'));
+                audit($auditLog, 'ADMIN_PASSWORD_CHANGED by=' . ($loggedUser ?: '-') . ' user=' . $username);
                 echo json_encode(['ok' => true]);
                 exit;
             }
@@ -204,10 +209,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($action === 'delete_user') {
                 $username = trim($_POST['username'] ?? '');
-                $keyPath = $usersDir . '/' . $username . '.key';
                 $jsonPath = $usersDir . '/' . $username . '.json';
                 $ok = true;
-                if (is_file($keyPath)) $ok = $ok && unlink($keyPath);
                 if (is_file($jsonPath)) $ok = $ok && unlink($jsonPath);
                 audit($auditLog, 'ADMIN_USER_DELETED user=' . $username);
                 echo json_encode(['ok' => $ok]);
@@ -250,7 +253,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!$lines) continue;
                 for ($i = count($lines) - 1; $i >= 0; $i--) {
                     $line = $lines[$i];
-                    if (strpos($line, ' LOGIN_GRANTED user=' . $username . ' ') !== false) {
+                    if (strpos($line, ' LOGIN_GRANTED for user=' . $username . ' ') !== false) {
                         $ts = substr($line, 0, 25);
                         $t = strtotime($ts);
                         if ($t) { $lastLoginAudit = $t; }
@@ -264,9 +267,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'email' => $data['email'] ?? '',
                 'created_at' => $data['created_at'] ?? null,
                 'updated_at' => $data['updated_at'] ?? null,
-                'last_key_generated_at' => $data['last_key_generated_at'] ?? null,
                 'cookie_exp_seconds' => $data['cookie_exp_seconds'] ?? null,
                 'enabled' => $data['enabled'] ?? 1,
+                'last_pw_generated_at' => $data['last_pw_generated_at'] ?? null,
                 'last_login_audit' => $lastLoginAudit
             ]);
             exit;
@@ -277,14 +280,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
 }
 
-// Liste aller Nutzer basierend auf *.key; stelle *.json sicher
-$keyFiles = glob($usersDir . '/*.key');
-sort($keyFiles);
+// Liste aller Nutzer basierend auf *.json
+$jsonFiles = glob($usersDir . '/*.json');
+sort($jsonFiles);
 $users = [];
-foreach ($keyFiles as $keyFile) {
-        $username = basename($keyFile, '.key');
-        $data = ensure_user_json($usersDir, $username);
-        $users[] = $data;
+foreach ($jsonFiles as $jsonFile) {
+    $data = read_json($jsonFile);
+    if (!is_array($data) || empty($data['id'])) continue;
+    $username = $data['id'];
+    $data = ensure_user_json($usersDir, $username);
+    $users[] = $data;
 }
 ?>
 <!DOCTYPE html>
@@ -543,7 +548,7 @@ document.querySelectorAll('.btn-info').forEach(btn => {
                     <tr><th>Email</th><td>${(data.email||'')}</td></tr>
                     <tr><th>Erstellt</th><td>${data.created_at? new Date(data.created_at*1000).toLocaleString(): '—'}</td></tr>
                     <tr><th>Letzte Änderung</th><td>${data.updated_at? new Date(data.updated_at*1000).toLocaleString(): '—'}</td></tr>
-                    <tr><th>Letzte Key-Generierung</th><td>${data.last_key_generated_at? new Date(data.last_key_generated_at*1000).toLocaleString(): '—'}</td></tr>
+                    <tr><th>Letzte Passwort-Änderung</th><td>${data.last_pw_generated_at? new Date(data.last_pw_generated_at*1000).toLocaleString(): '—'}</td></tr>
                     <tr><th>Cookie-Ablauf (Sek.)</th><td>${data.cookie_exp_seconds||0}</td></tr>
                     <tr><th>Status</th><td>${(data.enabled? 'Aktiviert' : 'Deaktiviert')}</td></tr>
                     <tr><th>Letzte Loginfreigabe</th><td>${lastLoginAudit}</td></tr>
