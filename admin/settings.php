@@ -115,7 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'PHPMailer ist nicht installiert. Bitte via Composer installieren: composer require phpmailer/phpmailer';
             } else {
                 try {
-                    $mailer = new PHPMailer\PHPMailer\PHPMailer(true);
+                    $mailer = new \PHPMailer\PHPMailer\PHPMailer(true);
                     $mailer->isSMTP();
                     $mailer->Host = (string)$email['smtp_host'];
                     $mailer->Port = (int)$email['smtp_port'];
