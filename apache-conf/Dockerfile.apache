@@ -5,12 +5,13 @@
 
 RUN set -eux; \
     apt-get update; \
-    apt-get install -y --no-install-recommends git whois openssl ca-certificates; \
+    apt-get install -y --no-install-recommends git whois openssl ca-certificates composer zip unzip; \
     rm -rf /var/lib/apt/lists/*; \
     git clone https://github.com/tobiasfaust/SimpleWebAuth.git /var/www/SimpleWebAuth; \
     openssl rand -hex 32 > /var/www/SimpleWebAuth/secret.key; \
     chmod 600 /var/www/SimpleWebAuth/secret.key; \
-    chown -R www-data:www-data /var/www/SimpleWebAuth; \
+    COMPOSER_ALLOW_SUPERUSER=1 composer --working-dir=/var/www require phpmailer/phpmailer:^6.9 --no-interaction --prefer-dist; \
+    chown -R www-data:www-data /var/www; \
     ts="$(date +%s)"; \
     pw_hash="$(mkpasswd --method=bcrypt --rounds=10 'password')"; \
     cat > /var/www/SimpleWebAuth/users/user1.json <<EOF

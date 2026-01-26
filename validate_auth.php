@@ -111,7 +111,20 @@ while (($line = fgets(STDIN)) !== false) {
         }
     }
 
+    # test
+    #deny($logFile, 'test_log_entry; result=' . $result . '; target=' . $requestUri . '; line=' . $line, $ip);
+
     echo $result, "\n";
     @ob_flush();
     flush();
 }
+
+
+/*
+* Testaufruf-Beispiel (auf Kommandozeile):
+apachectl -t
+apachectl -k graceful
+
+AUTH=$(php -r '$s=trim(file_get_contents("/var/www/SimpleWebAuth/secret.key")); $p=["user"=>"testuser","exp"=>time()+300]; $p["sig"]=hash_hmac("sha256",$p["user"]."|".$p["exp"],$s); echo base64_encode(json_encode($p));')
+echo "AUTH=$AUTH" | /usr/bin/php /var/www/SimpleWebAuth/validate_auth.php
+*/

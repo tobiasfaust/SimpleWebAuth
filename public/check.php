@@ -83,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     file_put_contents(
         $logFile,
-        date('c') . " LOGIN_GRANTED for user=" . $username . " ip=" . $_SERVER['REMOTE_ADDR'] . "\n",
+        date('c') . " LOGIN_GRANTED for user=" . $username . " ip=" . $_SERVER['REMOTE_ADDR'] . " target=" . $target . "\n",
         FILE_APPEND | LOCK_EX
     );
 
