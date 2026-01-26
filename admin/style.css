@@ -59,6 +59,30 @@ button:hover { background:#eee; }
 button.secondary { background:#fafafa; }
 button.danger { background:#ffeaea; border-color:#ff8a8a; }
 
+a.button-link {
+    display: inline-block;
+    padding: 8px 12px;
+    border:1px solid #ccc;
+    background:#f6f6f6;
+    cursor:pointer;
+    border-radius:4px;
+    color: #333;
+    text-decoration: none;
+}
+a.button-link:hover { background:#eee; text-decoration: none; }
+
+/* Settings layout */
+.settings-section { border: 1px solid #e5e5e5; border-radius: 6px; padding: 16px; margin: 16px 0; }
+.settings-section h2 { margin: 0 0 10px; font-size: 18px; color: #333; }
+.form-row { display: flex; gap: 12px; align-items: center; margin: 8px 0; }
+.form-row label { width: 180px; color: #444; }
+.form-row input, .form-row select { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+.form-actions { margin-top: 14px; }
+.note { color: #666; font-size: 13px; margin-top: 6px; }
+.flash { padding: 10px 12px; border-radius: 4px; margin-bottom: 12px; }
+.flash.ok { background: #e8f5e9; color: #256029; border: 1px solid #b7dfb9; }
+.flash.err { background: #fdecea; color: #8a1f17; border: 1px solid #f5c6cb; }
+
 .actions-bar { margin: 10px 0 20px; }
 
 .modal {

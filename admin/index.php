@@ -34,6 +34,7 @@ if (!empty($_COOKIE['AUTH'])) {
 <nav>
 <a href="users.php">Userverwaltung</a>
 <a href="audit.php">Audit-Log</a>
+<a href="settings.php">Einstellungen</a>
 </nav>
 </div>
 </body>
