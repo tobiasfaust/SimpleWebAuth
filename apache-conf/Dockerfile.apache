@@ -1,0 +1,17 @@
+[.....]
+
+# Install SimpleWebAuth in an apache2 docker image
+# Copy this Dockerfile snippet in your apache2 Dockerfile and build the image
+
+RUN set -eux; \
+    git clone https://github.com/tobiasfaust/SimpleWebAuth.git /var/www/SimpleWebAuth; \
+    openssl rand -hex 32 > /var/www/SimpleWebAuth/secret.key; \
+    chmod 600 /var/www/SimpleWebAuth/secret.key; \
+    chown -R www-data:www-data /var/www/SimpleWebAuth; \
+    ts="$(date +%s)"; \
+    pw_hash="$(mkpasswd --method=bcrypt --rounds=10 'password')"; \
+    cat > /var/www/SimpleWebAuth/users/user1.json <<EOF
+{"id":"user1","email":"user1@example.com","updated_at":$ts,"cookie_exp_seconds":3600,"last_cookie_created_at":0,"enabled":1,"password_hash":"$pw_hash","last_pw_generated_at":$ts}
+EOF
+
+[.....]

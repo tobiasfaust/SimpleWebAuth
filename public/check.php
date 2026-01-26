@@ -81,8 +81,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'samesite' => 'Strict'
     ]);
 
-    // Kein Schreiben von last_login_at in die User-JSON; Login wird im Audit-Log erfasst
-
     file_put_contents(
         $logFile,
         date('c') . " LOGIN_GRANTED for user=" . $username . " ip=" . $_SERVER['REMOTE_ADDR'] . "\n",
@@ -93,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-// Cookie-Prüfung findet nun in validate_auth.php (RewriteMap) statt.
+// Cookie-Prüfung findet in validate_auth.php (RewriteMap) statt.
 // Wird diese Seite aufgerufen, gilt der Cookie als ungültig/fehlend und wir zeigen die Login-Seite.
 render_login($target);
 exit;
