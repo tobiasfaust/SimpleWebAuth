@@ -1,5 +1,5 @@
 <?php
-// Admin Settings: PHPMailer SMTP configuration stored in admin/settings.json
+// Admin Settings: PHPMailer SMTP configuration stored in settings.json (root)
 
 require_once __DIR__ . '/../common/utils.php';
 

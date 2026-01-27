@@ -5,9 +5,9 @@ const ROOT_DIR = __DIR__ . '/..';
 const USERS_DIR = ROOT_DIR . '/users';
 const TOKENS_DIR = ROOT_DIR . '/tokens';
 const AUDIT_DIR  = ROOT_DIR . '/audit';
-const SETTINGS_PATH = ROOT_DIR . '/admin/settings.json';
+const SETTINGS_PATH = ROOT_DIR . '/settings.json';
 const SECRET_PATH   = ROOT_DIR . '/secret.key';
-// Autoload Path is configurable via admin/settings.json (global.autoload_path)
+// Autoload Path is configurable via settings.json (global.autoload_path)
 
 function current_audit_log_path(): string {
     return AUDIT_DIR . '/' . date('Y-m-d') . '.log';

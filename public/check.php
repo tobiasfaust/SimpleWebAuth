@@ -74,8 +74,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Abgelaufene Tokens entfernen (shared util)
         purge_expired_tokens(TOKENS_DIR);
 
-        // Send email using admin settings
-        $settings = @json_decode(@file_get_contents(__DIR__ . '/../admin/settings.json'), true) ?: [];
+        // Send email using settings (root-level settings.json)
+        $settings = read_json_assoc(SETTINGS_PATH);
         $emailCfg = $settings['email'] ?? [];
         $resetLink = (isset($_SERVER['REQUEST_SCHEME']) ? $_SERVER['REQUEST_SCHEME'] : 'https') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/auth/passwordreset.php?token=' . urlencode($token);
         $subject = 'Passwort zurücksetzen';
