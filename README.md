@@ -1,5 +1,3 @@
-# Auth-Mini-WebProject
-
 ## Zweck
 Dieses Projekt bietet browserbasierte passwortlose Authentifizierung per QR-Code (Magic-Link) oder Login mit persistentem Cookie. Es soll eine einfache Basic-Auth ersetzen.
 Falls ein gültiges Authentifizierungs-cookie vorliegt wird man transparent zur Applikation weitergeleitet. Andernfalls muss man sich einmal anmelden um das Cookie zu setzen. Anschließend wird man zur Applikation weitergeleitet.
