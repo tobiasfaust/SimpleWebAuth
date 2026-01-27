@@ -1,22 +1,17 @@
 <?php
 $tz = getenv('TZ') ?: 'Europe/Berlin';
 @date_default_timezone_set($tz);
-$logFile = __DIR__ . '/../audit/' . date('Y-m-d') . '.log';
+require_once __DIR__ . '/../common/utils.php';
+$logFile = current_audit_log_path();
 
-function password_complexity_ok(string $password): bool {
-    $groups = 0;
-    if (preg_match('/[A-Z]/', $password)) $groups++;
-    if (preg_match('/[a-z]/', $password)) $groups++;
-    if (preg_match('/\d/', $password)) $groups++;
-    if (preg_match('/[^A-Za-z0-9]/', $password)) $groups++;
-    return $groups >= 3;
-}
+// password_complexity_ok is provided by common/utils.php
 
 function render_form(string $token, ?string $message = null) {
     $msgHtml = $message ? '<div class="msg">'.htmlspecialchars($message, ENT_QUOTES, 'UTF-8').'</div>' : '';
     echo '<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
         .'<title>Passwort zurücksetzen</title>'
-        .'<link rel="stylesheet" href="style.css"></head>'
+        .'<link rel="stylesheet" href="style.css">'
+        .'<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css"></head>'
         .'<body><div class="center"><div class="card">'
         .'<h1>Passwort zurücksetzen</h1>'
         .'<form method="post" action="">'
@@ -33,7 +28,8 @@ function render_form(string $token, ?string $message = null) {
 function render_message(string $text) {
     echo '<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
         .'<title>Passwort zurücksetzen</title>'
-        .'<link rel="stylesheet" href="style.css"></head>'
+        .'<link rel="stylesheet" href="style.css">'
+        .'<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css"></head>'
         .'<body><div class="center"><div class="card">'
         .'<h1>Passwort zurücksetzen</h1>'
         .'<p style="text-align:center">'.htmlspecialchars($text, ENT_QUOTES, 'UTF-8').'</p>'

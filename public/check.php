@@ -1,15 +1,17 @@
 <?php
 $tz = getenv('TZ') ?: 'Europe/Berlin';
 @date_default_timezone_set($tz);
-$logFile = __DIR__ . '/../audit/' . date('Y-m-d') . '.log';
-$secret = trim(file_get_contents(__DIR__.'/../secret.key'));
+require_once __DIR__ . '/../common/utils.php';
+$logFile = current_audit_log_path();
+$secret = get_secret_key();
 
 function render_login(string $target, ?string $message = null) {
     $msgHtml = $message ? '<div class="msg">'.htmlspecialchars($message, ENT_QUOTES, 'UTF-8').'</div>' : '';
     
     echo '<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
         .'<title>Anmeldung</title>'
-        .'<link rel="stylesheet" href="style.css"></head>'
+        .'<link rel="stylesheet" href="style.css">'
+        .'<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css"></head>'
         .'<style>'
         .'</style></head><body><div class="center"><div class="card">'
         .'<h1>Login</h1>'
@@ -17,10 +19,10 @@ function render_login(string $target, ?string $message = null) {
         .'<input type="hidden" name="return" value="'.htmlspecialchars($target, ENT_QUOTES, 'UTF-8').'">'
         .'<label for="username">Benutzername</label>'
         .'<input id="username" name="username" type="text" autocomplete="username" required>'
-        .'<div class="small-actions"><button type="submit" name="action" value="forgot" class="link-button" formnovalidate>Passwort vergessen?</button></div>'
         .'<label for="password">Passwort</label>'
         .'<input id="password" name="password" type="password" autocomplete="current-password" required>'
         .'<div class="actions"><button type="submit">Senden</button></div>'
+        .'<div class="small-actions"><button type="submit" name="action" value="forgot" class="link-button" formnovalidate>Passwort vergessen?</button></div>'
         .$msgHtml
         .'</form></div></div></body></html>';
 }
@@ -69,23 +71,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         file_put_contents($tokenFile, json_encode($payload, JSON_UNESCAPED_SLASHES));
         file_put_contents($logFile, date('c') . ' PASSWORD_RESET_TOKEN_CREATED user=' . $username . ' ip=' . ($_SERVER['REMOTE_ADDR'] ?? '-') . "\n", FILE_APPEND | LOCK_EX);
 
-        // TODO: token löschroutine aus users.php, verlagern in commons/util.php
+        // Abgelaufene Tokens entfernen (shared util)
+        purge_expired_tokens(TOKENS_DIR);
 
         // Send email using admin settings
         $settings = @json_decode(@file_get_contents(__DIR__ . '/../admin/settings.json'), true) ?: [];
         $emailCfg = $settings['email'] ?? [];
         $resetLink = (isset($_SERVER['REQUEST_SCHEME']) ? $_SERVER['REQUEST_SCHEME'] : 'https') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/auth/passwordreset.php?token=' . urlencode($token);
         $subject = 'Passwort zurücksetzen';
-        $body = "Sie erhalten diese E-Mail, weil die Funktion 'Passwort vergessen' auf SimpleWebAuth verwendet wurde.\n\n".
-                "Der Link ist 15 Minuten gültig.\n\n".
-                "Klicken Sie hier, um Ihr Passwort zurückzusetzen:\n" . $resetLink . "\n\n".
-                "Wenn Sie diese Anfrage nicht gestellt haben, ignorieren Sie bitte diese E-Mail.";
+        $textBody = "Sie erhalten diese E-Mail, weil die Funktion 'Passwort vergessen' auf SimpleWebAuth verwendet wurde.\n\n".
+               "Der Link ist 15 Minuten gültig.\n\n".
+               "Klicken Sie hier, um Ihr Passwort zurückzusetzen:\n" . $resetLink . "\n\n".
+               "Wenn Sie diese Anfrage nicht gestellt haben, ignorieren Sie bitte diese E-Mail.";
+        $htmlBody = '<!doctype html><html lang="de"><head><meta charset="utf-8">'
+              . '</head><body style="font-family:Arial,Segoe UI,Helvetica,Arial,sans-serif;line-height:1.5;color:#222">'
+              . '<h2 style="margin:0 0 12px;color:#0a246a">Passwort zurücksetzen</h2>'
+              . '<p>Sie erhalten diese E-Mail, weil die Funktion <strong>„Passwort vergessen“</strong> auf SimpleWebAuth verwendet wurde.</p>'
+              . '<p>Der Link ist <strong>15 Minuten</strong> gültig.</p>'
+              . '<p style="margin:16px 0"><a href="' . htmlspecialchars($resetLink, ENT_QUOTES, 'UTF-8') . '" style="display:inline-block;padding:10px 14px;background:#1f3b73;color:#fff;text-decoration:none;border-radius:6px">Passwort jetzt zurücksetzen</a></p>'
+              . '<p>Alternativ können Sie diesen Link kopieren und in Ihren Browser einfügen:<br>'
+              . '<span style="font-size:13px;color:#555">' . htmlspecialchars($resetLink, ENT_QUOTES, 'UTF-8') . '</span></p>'
+              . '<hr style="border:none;border-top:1px solid #e5e5e5;margin:16px 0">'
+              . '<p style="font-size:13px;color:#666">Wenn Sie diese Anfrage nicht gestellt haben, ignorieren Sie bitte diese E-Mail.</p>'
+              . '</body></html>';
 
         $mailSent = false;
-        $autoloads = [__DIR__ . '/../../vendor/autoload.php', __DIR__ . '/vendor/autoload.php'];
-        foreach ($autoloads as $autoload) {
-            if (is_file($autoload)) { require_once $autoload; break; }
-        }
+        require_composer_autoload();
         if (class_exists('PHPMailer\\PHPMailer\\PHPMailer')) {
             try {
             $mailer = new \PHPMailer\PHPMailer\PHPMailer(true);
@@ -107,8 +118,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $mailer->setFrom($from, $fromName);
                 $mailer->addAddress($to);
                 $mailer->Subject = $subject;
-                $mailer->Body = $body;
-                $mailer->AltBody = $body;
+                $mailer->isHTML(true);
+                $mailer->Body = $htmlBody;
+                $mailer->AltBody = $textBody;
                 $mailer->send();
                 $mailSent = true;
             } catch (Throwable $ex) {

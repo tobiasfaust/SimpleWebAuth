@@ -1,38 +1,13 @@
 <?php
 // Admin Settings: PHPMailer SMTP configuration stored in admin/settings.json
 
-$settingsFile = __DIR__ . '/settings.json';
-$logFile = __DIR__ . '/../audit/' . date('Y-m-d') . '.log';
+require_once __DIR__ . '/../common/utils.php';
 
-// Helper: read/write JSON safe
-function read_json_assoc(string $file): array {
-    if (!is_file($file)) return [];
-    $raw = @file_get_contents($file);
-    $data = json_decode($raw, true);
-    return is_array($data) ? $data : [];
-}
-function write_json_assoc(string $file, array $data): bool {
-    $tmp = $file . '.tmp';
-    $payload = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-    if ($payload === false) return false;
-    $ok = file_put_contents($tmp, $payload, LOCK_EX) !== false;
-    if ($ok) {
-        return rename($tmp, $file);
-    }
-    return false;
-}
+$settingsFile = SETTINGS_PATH;
+$logFile = current_audit_log_path();
 
 // Minimal auth banner (same as other admin pages)
-$loggedUser = null;
-if (!empty($_COOKIE['AUTH'])) {
-    $decoded = base64_decode($_COOKIE['AUTH'], true);
-    if ($decoded !== false) {
-        $data = json_decode($decoded, true);
-        if (is_array($data) && !empty($data['user']) && preg_match('/^[A-Za-z0-9._-]+$/', $data['user'])) {
-            $loggedUser = $data['user'];
-        }
-    }
-}
+$loggedUser = get_logged_user();
 
 // Load existing settings
 $settings = read_json_assoc($settingsFile);
@@ -95,6 +70,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'Konnte Einstellungen nicht speichern.';
             }
         }
+    } elseif ($action === 'save_global') {
+        $autoload_path = trim($_POST['autoload_path'] ?? '');
+        $settings['global'] = $settings['global'] ?? [];
+        $settings['global']['autoload_path'] = $autoload_path;
+        if (write_json_assoc($settingsFile, $settings)) {
+            $message = 'Globale Einstellungen gespeichert.';
+            @file_put_contents($logFile, date('c') . ' SETTINGS_UPDATED category=global ip=' . ($_SERVER['REMOTE_ADDR'] ?? '-') . "\n", FILE_APPEND | LOCK_EX);
+        } else {
+            $error = 'Konnte globale Einstellungen nicht speichern.';
+        }
+        // refresh local
+        $email = array_merge($emailDefaults, ($settings['email'] ?? []));
     } elseif ($action === 'test_email') {
         // Send test email using current settings (from disk to ensure consistency)
         $test_to = trim($_POST['test_to'] ?? '');
@@ -106,11 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $email = array_merge($emailDefaults, $settings['email'] ?? []);
 
             // Try to load PHPMailer via Composer autoload
-            $autoloads = [__DIR__ . '/../../vendor/autoload.php', __DIR__ . '/vendor/autoload.php'];
-            $autoloadLoaded = false;
-            foreach ($autoloads as $autoload) {
-                if (is_file($autoload)) { require_once $autoload; $autoloadLoaded = true; break; }
-            }
+            $autoloadLoaded = require_composer_autoload();
             if (!$autoloadLoaded || !class_exists('PHPMailer\\PHPMailer\\PHPMailer')) {
                 $error = 'PHPMailer ist nicht installiert. Bitte via Composer installieren: composer require phpmailer/phpmailer';
             } else {
@@ -158,10 +141,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <title>Einstellungen</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
 </head>
 <body>
 <div class="container">
-    <?php if ($loggedUser): ?><div class="welcome">Willkommen <?= htmlspecialchars($loggedUser, ENT_QUOTES, 'UTF-8') ?></div><?php endif; ?>
+    <?php render_admin_welcome('index.php?logout=1'); ?>
     <h1>Einstellungen</h1>
 
     <?php if ($message): ?><div class="flash ok"><?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?></div><?php endif; ?>
@@ -208,6 +192,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="form-actions">
                 <button type="submit">Speichern</button>
                 <a href="index.php" class="button-link" style="margin-left:8px;">Abbrechen</a>
+            </div>
+        </section>
+    </form>
+
+    <form method="post">
+        <input type="hidden" name="action" value="save_global">
+        <section class="settings-section">
+            <h2>Globale Einstellungen</h2>
+            <div class="form-row">
+                <label for="autoload_path">Composer Autoload Pfad</label>
+                <?php $global = $settings['global'] ?? []; $ap = (string)($global['autoload_path'] ?? ''); ?>
+                <input id="autoload_path" name="autoload_path" value="<?= htmlspecialchars($ap, ENT_QUOTES, 'UTF-8') ?>" placeholder="/var/www/vendor/autoload.php">
+            </div>
+            <div class="note">Pfad zur Datei vendor/autoload.php, wird für PHPMailer und andere Bibliotheken verwendet.</div>
+            <div class="form-actions">
+                <button type="submit">Speichern</button>
             </div>
         </section>
     </form>

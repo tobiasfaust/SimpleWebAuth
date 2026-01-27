@@ -1,36 +1,14 @@
 <?php
 // Userverwaltung: Quelle ist users/*.json; pro User synchrones users/<id>.json mit password_hash
 
-$usersDir = __DIR__ . '/../users';
-$tokensDir = __DIR__ . '/../tokens';
-$auditLog = __DIR__ . '/../audit/' . date('Y-m-d') . '.log';
+require_once __DIR__ . '/../common/utils.php';
+$usersDir = USERS_DIR;
+$tokensDir = TOKENS_DIR;
+$auditLog = current_audit_log_path();
 
-$loggedUser = null;
-if (!empty($_COOKIE['AUTH'])) {
-    $decoded = base64_decode($_COOKIE['AUTH'], true);
-    if ($decoded !== false) {
-        $data = json_decode($decoded, true);
-        if (is_array($data) && !empty($data['user']) && preg_match('/^[A-Za-z0-9._-]+$/', $data['user'])) {
-            $loggedUser = $data['user'];
-        }
-    }
-}
+require_once __DIR__ . '/../common/utils.php';
+$loggedUser = get_logged_user();
 
-function read_json(string $file): array {
-        if (!is_file($file)) return [];
-        $raw = file_get_contents($file);
-        $data = json_decode($raw, true);
-        return is_array($data) ? $data : [];
-}
-
-function write_json(string $file, array $data): bool {
-        $tmp = $file . '.tmp';
-        $ok = file_put_contents($tmp, json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX) !== false;
-        if ($ok) {
-                return rename($tmp, $file);
-        }
-        return false;
-}
 
 function ensure_user_json(string $usersDir, string $username): array {
     $jsonPath = $usersDir . '/' . $username . '.json';
@@ -67,18 +45,7 @@ function ensure_user_json(string $usersDir, string $username): array {
     return $existing;
 }
 
-function password_complexity_ok(string $password): bool {
-    $groups = 0;
-    if (preg_match('/[A-Z]/', $password)) $groups++;
-    if (preg_match('/[a-z]/', $password)) $groups++;
-    if (preg_match('/\d/', $password)) $groups++;
-    if (preg_match('/[^A-Za-z0-9]/', $password)) $groups++;
-    return $groups >= 3;
-}
-
-function audit(string $logFile, string $line): void {
-        file_put_contents($logFile, date('c') . ' ' . $line . ' ip=' . ($_SERVER['REMOTE_ADDR'] ?? '-') . "\n", FILE_APPEND | LOCK_EX);
-}
+// read_json, write_json, password_complexity_ok, audit are provided by common/utils.php
 
 // Aktionen (AJAX/POST)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -221,14 +188,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $username = trim($_POST['username'] ?? '');
                 $data = ensure_user_json($usersDir, $username);
                 // Alte, abgelaufene Tokens löschen
-                $now = time();
-                foreach (glob($tokensDir . '/*.json') as $tokFile) {
-                    $raw = @file_get_contents($tokFile);
-                    $tdata = json_decode($raw, true);
-                    if (is_array($tdata) && isset($tdata['exp']) && (int)$tdata['exp'] < $now) {
-                        @unlink($tokFile);
-                    }
-                }
+                purge_expired_tokens($tokensDir);
                 $t = bin2hex(random_bytes(16));
                 $exp = time() + 900; // Token gültig für 15 Minuten
                 $tokenData = ['user' => $username, 'exp' => $exp];
@@ -298,10 +258,11 @@ foreach ($jsonFiles as $jsonFile) {
         <meta charset="UTF-8">
         <title>Userverwaltung</title>
         <link rel="stylesheet" href="style.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
 </head>
 <body>
 <div class="container">
-    <?php if ($loggedUser): ?><div class="welcome">Willkommen <?= htmlspecialchars($loggedUser, ENT_QUOTES, 'UTF-8') ?></div><?php endif; ?>
+    <?php render_admin_welcome('index.php?logout=1'); ?>
         <h1>Userverwaltung</h1>
         <div class="actions-bar">
                 <button id="btnCreate">+ Benutzer anlegen</button>

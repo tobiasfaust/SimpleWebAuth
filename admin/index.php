@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../common/utils.php';
 // Logout-Handler
 if (isset($_GET['logout'])) {
 	setcookie('AUTH', '', [
@@ -11,25 +12,15 @@ if (isset($_GET['logout'])) {
 	header('Location: /authadmin');
 	exit;
 }
-
-$loggedUser = null;
-if (!empty($_COOKIE['AUTH'])) {
-	$decoded = base64_decode($_COOKIE['AUTH'], true);
-	if ($decoded !== false) {
-		$data = json_decode($decoded, true);
-		if (is_array($data) && !empty($data['user']) && preg_match('/^[A-Za-z0-9._-]+$/', $data['user'])) {
-			$loggedUser = $data['user'];
-		}
-	}
-}
 ?>
 <!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"><title>Admin Dashboard</title>
-<link rel="stylesheet" href="style.css"></head>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css"></head>
 <body>
 <div class="container">
-<?php if ($loggedUser): ?><div class="welcome"><a href="?logout=1" style="text-decoration:none; margin-right:8px;" title="Logout">🚪</a>Willkommen <?= htmlspecialchars($loggedUser, ENT_QUOTES, 'UTF-8') ?></div><?php endif; ?>
+<?php render_admin_welcome('index.php?logout=1'); ?>
 <h1>Admin Dashboard</h1>
 <nav>
 <a href="users.php">Userverwaltung</a>

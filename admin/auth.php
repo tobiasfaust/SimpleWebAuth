@@ -1,10 +1,11 @@
 <?php
 // setzt das persistente cookie 
+require_once __DIR__ . '/../common/utils.php';
 
 $token = $_GET['token'] ?? '';
-$file = __DIR__.'/../tokens/'.$token.'.json';
-$logFile = __DIR__ . '/../audit/' . date('Y-m-d') . '.log';
-$secret = trim(file_get_contents(__DIR__.'/../secret.key'));
+$file = TOKENS_DIR . '/' . $token . '.json';
+$logFile = current_audit_log_path();
+$secret = get_secret_key();
 
 if(!file_exists($file)){
     file_put_contents(
@@ -35,8 +36,7 @@ setcookie('AUTH',$session,[
 */
 
 // Cookie-Ablauf aus users/<user>.json lesen
-$usersDir = __DIR__ . '/../users';
-$userJsonPath = $usersDir . '/' . $data['user'] . '.json';
+$userJsonPath = USERS_DIR . '/' . $data['user'] . '.json';
 $userJson = [];
 if (is_file($userJsonPath)) {
     $userJson = json_decode(file_get_contents($userJsonPath), true) ?: [];
@@ -46,8 +46,7 @@ if ($cookieExpSeconds < 60) { $cookieExpSeconds = 60; }
 if ($cookieExpSeconds > 60*60*24*365) { $cookieExpSeconds = 60*60*24*365; }
 
 // Nutzerstatus prüfen (enabled)
-$usersDir = __DIR__ . '/../users';
-$userJsonPath = $usersDir . '/' . $data['user'] . '.json';
+$userJsonPath = USERS_DIR . '/' . $data['user'] . '.json';
 $userJson = is_file($userJsonPath) ? (json_decode(file_get_contents($userJsonPath), true) ?: []) : [];
 if (isset($userJson['enabled']) && (int)$userJson['enabled'] === 0) {
      // Token einmalig verbrauchen, dann verweigern

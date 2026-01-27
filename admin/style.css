@@ -150,6 +150,21 @@ pre.audit {
     font-size: 14px;
 }
 
+.welcome .logout-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 24px;
+    margin-right: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fafafa;
+    text-decoration: none;
+}
+.welcome .logout-link:hover { background: #eee; }
+.welcome .logout-icon { font-size: 16px; color: #666; line-height: 1; }
+
 /* Audit Layout mit rechter Tagesnavigation */
 .audit-layout {
     display: flex;
