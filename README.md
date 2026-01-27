@@ -80,15 +80,23 @@ listen 127.0.0.1:8080
 
 ## Nutzung
 
-2. QR-Code für Magic-Link erzeugen
-3. iOS scannt → Cookie wird gesetzt
-4. Zugriff auf `/fhem funktioniert` automatisch
+1. QR-Code für Magic-Link erzeugen
+2. iOS scannt → Cookie wird gesetzt
+3. Zugriff auf `/fhem` funktioniert automatisch solange der Cookie existiert, gültig und nicht abgelaufen ist
+
+oder
+
+1. einfach die Zielseite aufrufen, zb. https://mein.server.de/fhem
+2. Login Seite erscheint -> Zugangsdaten eingeben
+3. Zugriff auf `/fhem` funktioniert automatisch solange der Cookie existiert, gültig und nicht abgelaufen ist
 
 ## Sicherheit
 
 - HTTPS Pflicht
 - Magic-Link Token einmalig (5-15 Minuten gültig)
 - Session-Cookie 30 Tage gültig (HMAC-signiert, pro Anfrage validiert)
+- Deaktivieren von Usern immer möglich mit sofortiger Wirkung
 - Backend nie öffentlich erreichbar
+- Admin Bereich nie öffentlich erreichbar
 - Audit-Log in `/var/www/SimpleWebAuth/audit/YYYY-MM-DD.log`
 - Audit-Log einsehbar unter `/authadmin/index.php` -> `Audit`
